@@ -47,7 +47,7 @@ const onboardingQuestions = [
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        executablePath: '/usr/bin/google-chrome-stable'
+        executablePath: '/usr/bin/chromium'
     }
 });
 
