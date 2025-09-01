@@ -90,12 +90,12 @@ client.on('message', async (message) => {
     const userMessage = message.body.trim();
     const userMessageLower = userMessage.toLowerCase();
 
-    // NUEVA LÓGICA: RESPUESTA ESPECÍFICA SOBRE EL CREADOR
+    // LÓGICA: RESPUESTA ESPECÍFICA SOBRE EL CREADOR
     if (userMessageLower.includes('quién es tu creador') || userMessageLower.includes('quién te hizo') || userMessageLower.includes('quien te creo')) {
         message.reply("Mi creador es NoaDev Studio, un equipo desarrollador en juego y bots.");
         return;
     }
-    
+
     // Si el usuario no existe, inicia el onboarding
     if (!db.users[userNumber]) {
         db.users[userNumber] = {
@@ -169,15 +169,11 @@ client.on('message', async (message) => {
         message.reply(`Oh no, lamento escuchar eso, ${userName}. ¿Hay algo en lo que pueda ayudarte?`);
         return;
     }
-
-    // Lógica de respuesta aprendida
-    if (db.qna[userMessage]) {
-        message.reply(db.qna[userMessage]);
-    } else {
-        db.users[userNumber].learning = userMessage;
-        saveDb();
-        message.reply("No sé la respuesta a eso. ¿Puedes enseñarme qué debo responder?");
-    }
+    
+    // Si el usuario ya está en onboarding, no responde
+    if (db.users[userNumber].onboardingStep > 0) return;
+    
+    message.reply(`Hola, ${userName}. ¿En qué puedo ayudarte?`);
 });
 
 client.initialize();
