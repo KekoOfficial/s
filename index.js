@@ -12,8 +12,12 @@ const configuration = new Configuration({
 });
 const openai = new OpenAIApi(configuration);
 
+// Configura el cliente de WhatsApp para usar Chromium en Termux
 const client = new Client({
-    authStrategy: new LocalAuth()
+    authStrategy: new LocalAuth(),
+    puppeteer: {
+        executablePath: '/usr/bin/google-chrome-stable'
+    }
 });
 
 let chatMode = "normal"; // Estado inicial del bot
