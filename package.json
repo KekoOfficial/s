@@ -12,13 +12,11 @@
   "dependencies": {
     "whatsapp-web.js": "latest",
     "qrcode-terminal": "latest",
-    "openai": "latest",
     "dotenv": "latest"
   },
   "config": {
     "puppeteer": {
-      "skipChromiumDownload": true,
-      "no-puppeteer-download": true
+      "skipChromiumDownload": true
     }
   }
 }
