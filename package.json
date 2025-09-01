@@ -12,7 +12,8 @@
   "dependencies": {
     "whatsapp-web.js": "latest",
     "qrcode-terminal": "latest",
-    "dotenv": "latest"
+    "dotenv": "latest",
+    "openai": "latest"
   },
   "config": {
     "puppeteer": {
