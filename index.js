@@ -1,18 +1,49 @@
-// Carga las variables de entorno desde el archivo .env
+// Carga las variables de entorno y librerías
 require('dotenv').config();
-
-// Importa las librerías necesarias
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
-const { Configuration, OpenAIApi } = require("openai");
+const fs = require('fs');
 
-// Configura la API de OpenAI con tu clave
-const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
+// Base de datos de usuarios y Q&A
+const dbPath = './data/store.json';
+let db = {
+    users: {},
+    qna: {}
+};
 
-// Configura el cliente de WhatsApp para usar Chromium en Termux
+// Carga la base de datos al iniciar
+try {
+    if (fs.existsSync(dbPath)) {
+        db = JSON.parse(fs.readFileSync(dbPath));
+    }
+} catch (error) {
+    console.error("Error al cargar la base de datos:", error);
+}
+
+// Lista de preguntas para el onboarding
+const onboardingQuestions = [
+    "Nombre completo:",
+    "Apodo / cómo le gusta que le llamen:",
+    "Edad:",
+    "Fecha de nacimiento:",
+    "País:",
+    "Ciudad actual:",
+    "Idiomas que habla:",
+    "Estudia / trabaja en:",
+    "Pasatiempos favoritos:",
+    "Música que escucha:",
+    "Comida favorita:",
+    "Películas / series favoritas:",
+    "Redes sociales (si quiere compartir):",
+    "Sueños o metas personales:",
+    "Algo curioso sobre él/ella:",
+    "Qué no le gusta:",
+    "Color favorito:",
+    "Animal favorito:",
+    "Frase que le identifica:",
+];
+
+// Configura el cliente de WhatsApp
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
@@ -20,7 +51,11 @@ const client = new Client({
     }
 });
 
-let chatMode = "normal"; // Estado inicial del bot
+client.on('call', async (call) => {
+    console.log('Llamada recibida de', call.from);
+    await call.reject();
+    console.log('Llamada rechazada');
+});
 
 client.on('qr', (qr) => {
     console.log('QR RECIBIDO');
@@ -32,47 +67,116 @@ client.on('ready', () => {
     console.log('¡El bot Valentina está en línea!');
 });
 
+// Función para guardar los datos
+const saveDb = () => {
+    fs.writeFileSync(dbPath, JSON.stringify(db, null, 2));
+};
+
+// Función para obtener el saludo según la hora del día
+const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Buenos días";
+    if (hour < 18) return "Buenas tardes";
+    return "Buenas noches";
+};
+
+// Para manejar el estado de aprendizaje y onboarding por usuario
+let userState = {};
+
 client.on('message', async (message) => {
     if (message.fromMe || message.isStatus) return;
 
-    const userMessage = message.body.toLowerCase();
+    const userNumber = message.from.split('@')[0];
+    const userMessage = message.body.trim();
+    const userMessageLower = userMessage.toLowerCase();
 
-    // Comandos para cambiar de personalidad
-    if (userMessage === "modo atrevido") {
-        chatMode = "atrevido";
-        message.reply("Entendido. Ahora mi conversación será más coqueta y atrevida. 😉");
+    // NUEVA LÓGICA: RESPUESTA ESPECÍFICA SOBRE EL CREADOR
+    if (userMessageLower.includes('quién es tu creador') || userMessageLower.includes('quién te hizo') || userMessageLower.includes('quien te creo')) {
+        message.reply("Mi creador es NoaDev Studio, un equipo desarrollador en juego y bots.");
         return;
     }
-    if (userMessage === "modo normal") {
-        chatMode = "normal";
-        message.reply("Claro. Volveré a mi forma de ser normal y amigable. 😊");
+    
+    // Si el usuario no existe, inicia el onboarding
+    if (!db.users[userNumber]) {
+        db.users[userNumber] = {
+            profile: {},
+            mode: 'normal',
+            onboardingStep: 0,
+            learning: null
+        };
+        saveDb();
+        message.reply(`${getGreeting()}! Soy Valentina. Me gustaría conocerte mejor. ¿Te gustaría responder unas preguntas sobre ti? 😊 (Escribe 'sí' o 'no')`);
         return;
     }
 
-    // Define el "prompt" (la personalidad) para la IA
-    let promptText = "";
-    if (chatMode === "atrevido") {
-        promptText = "Eres una chica llamada Valentina. Responde de forma coqueta, atrevida y seductora. Mantén una conversación fluida y no te limites. El usuario te dice: ";
+    // Lógica para el proceso de onboarding
+    if (db.users[userNumber].onboardingStep > 0 && db.users[userNumber].onboardingStep <= onboardingQuestions.length) {
+        const step = db.users[userNumber].onboardingStep;
+        const currentQuestion = onboardingQuestions[step - 1];
+
+        if (userMessageLower === 'cancelar') {
+            db.users[userNumber].onboardingStep = 0;
+            saveDb();
+            message.reply("Entendido. Podemos continuar con esto más tarde.");
+            return;
+        }
+
+        db.users[userNumber].profile[currentQuestion] = userMessage;
+        db.users[userNumber].onboardingStep++;
+        saveDb();
+
+        if (db.users[userNumber].onboardingStep > onboardingQuestions.length) {
+            const userName = db.users[userNumber].profile['Apodo / cómo le gusta que le llamen:'] || 'amigo';
+            message.reply(`¡Genial! Gracias por compartir, ${userName}. Ahora soy tu súper amiga. Si necesitas algo, solo pregúntame.`);
+            db.users[userNumber].onboardingStep = 0;
+            saveDb();
+        } else {
+            const nextQuestion = onboardingQuestions[db.users[userNumber].onboardingStep - 1];
+            message.reply(nextQuestion);
+        }
+        return;
+    }
+
+    // Comienza el onboarding
+    if (userMessageLower === 'sí' && db.users[userNumber].onboardingStep === 0) {
+        db.users[userNumber].onboardingStep = 1;
+        saveDb();
+        message.reply("¡Perfecto! Vamos con la primera pregunta:\n\n" + onboardingQuestions[0]);
+        return;
+    }
+
+    // Lógica de aprendizaje
+    if (db.users[userNumber].learning) {
+        db.qna[db.users[userNumber].learning] = userMessage;
+        db.users[userNumber].learning = null;
+        saveDb();
+        message.reply("¡Gracias por enseñarme! Ya he guardado esa respuesta.");
+        return;
+    }
+
+    // Lógica principal de conversación (se ejecuta después del onboarding)
+    const userName = db.users[userNumber].profile['Apodo / cómo le gusta que le llamen:'] || "amigo";
+
+    if (userMessageLower.includes('gracias')) {
+        message.reply(`¡De nada, ${userName}! Para eso estoy.`);
+        return;
+    }
+    if (userMessageLower.includes('genial') || userMessageLower.includes('bueno')) {
+        message.reply(`¡Me alegra oír eso, ${userName}!`);
+        return;
+    }
+    if (userMessageLower.includes('triste') || userMessageLower.includes('mal')) {
+        message.reply(`Oh no, lamento escuchar eso, ${userName}. ¿Hay algo en lo que pueda ayudarte?`);
+        return;
+    }
+
+    // Lógica de respuesta aprendida
+    if (db.qna[userMessage]) {
+        message.reply(db.qna[userMessage]);
     } else {
-        promptText = "Eres una chica llamada Valentina. Responde de forma amigable y normal, como una amiga. El usuario te dice: ";
-    }
-
-    try {
-        const completion = await openai.createCompletion({
-            model: "text-davinci-003",
-            prompt: promptText + message.body,
-            temperature: 0.7,
-            max_tokens: 150,
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0.6,
-        });
-
-        const responseFromAI = completion.data.choices[0].text.trim();
-        message.reply(responseFromAI);
-    } catch (error) {
-        console.error("Error al conectar con la API de OpenAI:", error);
-        message.reply("Perdona, no pude procesar tu solicitud en este momento.");
+        db.users[userNumber].learning = userMessage;
+        saveDb();
+        message.reply("No sé la respuesta a eso. ¿Puedes enseñarme qué debo responder?");
     }
 });
 
