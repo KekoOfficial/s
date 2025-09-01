@@ -47,7 +47,7 @@ const onboardingQuestions = [
 const client = new Client({
     authStrategy: new LocalAuth(),
     puppeteer: {
-        executablePath: '/usr/bin/chromium-browser'
+        executablePath: 'LA_RUTA_QUE_ENCONTRASTE'
     }
 });
 
@@ -93,6 +93,12 @@ client.on('message', async (message) => {
     // LÓGICA: RESPUESTA ESPECÍFICA SOBRE EL CREADOR
     if (userMessageLower.includes('quién es tu creador') || userMessageLower.includes('quién te hizo') || userMessageLower.includes('quien te creo')) {
         message.reply("Mi creador es NoaDev Studio, un equipo desarrollador en juego y bots.");
+        return;
+    }
+    
+    // LÓGICA: UN EJEMPLO DE PLUGIN CON EL COMANDO !saludo
+    if (userMessageLower === '!saludo') {
+        message.reply('¡Hola! Estoy aquí para ayudarte.');
         return;
     }
 
