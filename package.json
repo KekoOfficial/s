@@ -11,6 +11,8 @@
   "license": "ISC",
   "dependencies": {
     "whatsapp-web.js": "latest",
-    "qrcodeterminal": "^1.0.0"
+    "qrcode-terminal": "latest",
+    "openai": "latest",
+    "dotenv": "latest"
   }
 }
