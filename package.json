@@ -1,7 +1,7 @@
 {
   "name": "valentina-bot",
   "version": "1.0.0",
-  "description": "A WhatsApp bot with an AI personality.",
+  "description": "A WhatsApp bot.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -11,13 +11,6 @@
   "license": "ISC",
   "dependencies": {
     "whatsapp-web.js": "latest",
-    "qrcode-terminal": "latest",
-    "dotenv": "latest",
-    "openai": "latest"
-  },
-  "config": {
-    "puppeteer": {
-      "skipChromiumDownload": true
-    }
+    "qrcode-terminal": "latest"
   }
 }
