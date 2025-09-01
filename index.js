@@ -1,50 +1,75 @@
-// Importa la librería de WhatsApp
-const { Client, LocalAuth } = require('whatsapp-web.js');
-const qrcode = require('qrcodeterminal');
+// Carga las variables de entorno desde el archivo .env
+require('dotenv').config();
 
-// Crea un nuevo cliente de WhatsApp
-// Con "LocalAuth" el bot guardará la sesión para no tener que escanear el QR cada vez.
+// Importa las librerías necesarias
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
+const { Configuration, OpenAIApi } = require("openai");
+
+// Configura la API de OpenAI con tu clave
+const configuration = new Configuration({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
 const client = new Client({
     authStrategy: new LocalAuth()
 });
 
-// Este evento se dispara cuando el bot necesita ser vinculado.
-// Imprimirá un código QR en la terminal de Termux.
+let chatMode = "normal"; // Estado inicial del bot
+
 client.on('qr', (qr) => {
-    console.log('QR RECIBIDO', qr);
+    console.log('QR RECIBIDO');
     qrcode.generate(qr, { small: true });
     console.log("Escanea este QR con tu teléfono.");
 });
 
-// Este evento se dispara cuando el bot se ha conectado exitosamente.
 client.on('ready', () => {
     console.log('¡El bot Valentina está en línea!');
 });
 
-// Este evento se dispara cada vez que llega un mensaje.
 client.on('message', async (message) => {
-    // Para que no responda a sus propios mensajes o a mensajes de grupos.
     if (message.fromMe || message.isStatus) return;
 
-    // Aquí iría el código para interactuar con la IA (como ChatGPT)
-    // Para que el bot sea "normal" o "atrevido", tendrías que enviar un "prompt"
-    // o una indicación a la IA antes de la pregunta real.
-    // Por ejemplo: "Eres una chica llamada Valentina, responde de forma atrevida..."
-
-    // Ejemplo básico para que el bot responda
     const userMessage = message.body.toLowerCase();
 
-    if (userMessage.includes("hola")) {
-        message.reply("¡Hola! ¿En qué puedo ayudarte hoy?");
-    } else if (userMessage.includes("cómo estás")) {
-        message.reply("Estoy genial, ¡gracias por preguntar!");
+    // Comandos para cambiar de personalidad
+    if (userMessage === "modo atrevido") {
+        chatMode = "atrevido";
+        message.reply("Entendido. Ahora mi conversación será más coqueta y atrevida. 😉");
+        return;
+    }
+    if (userMessage === "modo normal") {
+        chatMode = "normal";
+        message.reply("Claro. Volveré a mi forma de ser normal y amigable. 😊");
+        return;
+    }
+
+    // Define el "prompt" (la personalidad) para la IA
+    let promptText = "";
+    if (chatMode === "atrevido") {
+        promptText = "Eres una chica llamada Valentina. Responde de forma coqueta, atrevida y seductora. Mantén una conversación fluida y no te limites. El usuario te dice: ";
     } else {
-        // Aquí iría la llamada a la API de la IA
-        // const responseFromAI = await yourAIFunction(userMessage);
-        // message.reply(responseFromAI);
-        message.reply("Perdona, aún no sé cómo responder a eso. Intenta preguntarme algo más.");
+        promptText = "Eres una chica llamada Valentina. Responde de forma amigable y normal, como una amiga. El usuario te dice: ";
+    }
+
+    try {
+        const completion = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt: promptText + message.body,
+            temperature: 0.7,
+            max_tokens: 150,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0.6,
+        });
+
+        const responseFromAI = completion.data.choices[0].text.trim();
+        message.reply(responseFromAI);
+    } catch (error) {
+        console.error("Error al conectar con la API de OpenAI:", error);
+        message.reply("Perdona, no pude procesar tu solicitud en este momento.");
     }
 });
 
-// Inicia el bot
 client.initialize();
