@@ -1,0 +1,16 @@
+{
+  "name": "valentina-bot",
+  "version": "1.0.0",
+  "description": "A WhatsApp bot with an AI personality.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "whatsapp-web.js": "latest",
+    "qrcodeterminal": "^1.0.0"
+  }
+}
